@@ -32,11 +32,9 @@ if [ ! -e "$CONFIG_FILE" ]; then
     --arg value2 '' \
     --arg key3   'last_aws_pem' \
     --arg value3 '' \
-    --arg key4   'tag1' \
+    --arg key4   'tag2' \
     --arg value4 '' \
-    --arg key5   'tag2' \
-    --arg value5 '' \
-    '. | .[$key0]=$value0 | .[$key1]=$value1 | .[$key2]=$value2 | .[$key3]=$value3 | .[$key4]=$value4 | .[$key5]=$value5' \
+    '. | .[$key0]=$value0 | .[$key1]=$value1 | .[$key2]=$value2 | .[$key3]=$value3 | .[$key4]=$value4' \
     <<<'{}' > $CONFIG_FILE
 
     CONFIG_FILE_JSON=$(cat $CONFIG_FILE)
