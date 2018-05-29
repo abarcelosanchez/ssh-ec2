@@ -32,9 +32,11 @@ if [ ! -e "$CONFIG_FILE" ]; then
     --arg value2 '' \
     --arg key3   'last_aws_pem' \
     --arg value3 '' \
-    --arg key4   'tag2' \
+    --arg key4   'tag1' \
     --arg value4 '' \
-    '. | .[$key0]=$value0 | .[$key1]=$value1 | .[$key2]=$value2 | .[$key3]=$value3 | .[$key4]=$value4' \
+    --arg key5   'tag2' \
+    --arg value5 '' \
+    '. | .[$key0]=$value0 | .[$key1]=$value1 | .[$key2]=$value2 | .[$key3]=$value3 | .[$key4]=$value4 | .[$key5]=$value5' \
     <<<'{}' > $CONFIG_FILE
 
     CONFIG_FILE_JSON=$(cat $CONFIG_FILE)
@@ -74,6 +76,8 @@ else
         read AWS_TAG2
         CONFIG_FILE_JSON=$(cat $CONFIG_FILE)
         jq ".tag2 = \"$AWS_TAG2\"" <<<"$CONFIG_FILE_JSON" > $CONFIG_FILE
+        CONFIG_FILE_JSON=$(cat $CONFIG_FILE)
+        jq ".tag1 = \"$AWS_TAG1\"" <<<"$CONFIG_FILE_JSON" > $CONFIG_FILE
         exit 0
     fi
 fi
@@ -84,7 +88,7 @@ echo ""
 AWS_TAG1=$(cat $CONFIG_FILE | jq .tag1 | sed 's/"//g')
 AWS_TAG2=$(cat $CONFIG_FILE | jq .tag2 | sed 's/"//g')
 if [ "$AWS_TAG1" == "" ]; then
-    echo "${red}ERROR${reset}: Firs configure your perfil"
+    echo "${red}ERROR${reset}: First configure your perfil"
     echo "Run ${green}ssh-ec2 -c ${reset}or ${green}ssh-ec2 --configure${reset}"
     exit -1
 fi
