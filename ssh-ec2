@@ -197,7 +197,7 @@ echo "${reset}"
 echo ""
 
 # Getting my public ip
-MY_PUBLIC_IP=$(curl ipinfo.io/ip)
+MY_PUBLIC_IP=$(curl -s ipinfo.io/ip)
 echo ""
 # Openning SSH SG for your public ip
 echo "Adding SG rule for your public ip..."
