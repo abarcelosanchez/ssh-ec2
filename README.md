@@ -62,4 +62,4 @@ This script will ask you several questions that you have to answer:
 Answer these questions and you will connect via ssh with the instance. The script open the ssh port for your public IP in ec2 Sequrity Group, and when you exit from instance, the script remove your public ip from ec2 Sequrity Group. 
 
 ## **Important recommendation**
-**When you are choosing the AWS profile, instance name or instance pem, it is recomended to tap double click in the name that you want to select and then paste (CRT/CMD+v). Doing this you won't never write a wrong name and you connection will be work fine**
+**When you are choosing the AWS profile, instance name or instance pem, it is recomended to tap double click in the name that you want to select and then paste (CRT/CMD+v). Doing this you won't never write a wrong name and your connection will be work fine**
