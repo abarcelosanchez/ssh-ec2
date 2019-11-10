@@ -2,9 +2,9 @@
 
 # VARIABLES
 USERNAME="$1"
-SG_PORT="22"
-SSH_KEYS_PATH="$HOME/.ssh"
-CONFIG_FILE="$HOME/.ssh-ec2.config"
+SG_PORT="22" # to add rule in SG
+SSH_KEYS_PATH="$HOME/.ssh" # path where aws config files are located
+CONFIG_FILE="$HOME/.ssh-aws-ec2.config" # where save session informaition
 PATH_HOME_USER="/home/$USER"
 PEM_NAME=""
 PEM_PATH=""
@@ -20,6 +20,17 @@ green=$(tput setaf 2)
 yellow=$(tput setaf 3)
 red=$(tput setaf 1)
 reset=$(tput sgr0)
+
+# Checking there is one input argument
+if [ "$#" -ne 1 ]; then
+    echo -e "\n${red}ERROR${reset}: script needs an argument: for more information run <${yellow}ec2-user -h${reset}> \n"
+    exit -1
+fi
+# Checking if you have jq installed
+if [ ! -x "which jq" ]; then 
+    echo -e "\n${red}ERROR${reset}: jq tool is not installed. You need it, installation information here: \nhttps://stedolan.github.io/jq/download/ \n"
+    exit -1
+fi
 
 # Creating file to save info session
 if [ ! -e "$CONFIG_FILE" ]; then
@@ -46,49 +57,52 @@ fi
 echo ""
 clear
 
-if [ "$#" -ne 1 ]; then
-    printf "\n${red}ERROR${reset}: script needs an argument: for more information run <${yellow}ec2-user -h${reset}>"
+# Help menu
+if [ "$1" == "-h" ] || [ "S1" == "--help" ]; then
+    echo "${bold}----------${reset}"
+    echo -e "${bold}${green}Info${reset}\nScript needs an argument:"
+    echo -e "\n1 - The ec2 ${bold}${green}username${reset} for ssh connection, usually: ${yellow}ubuntu${reset} if you are using Ubuntu SO in ec2 or ${yellow}ec2-user${reset} for Elastic Beanstalk."
+    echo -e "\n2 - Configure: ${bold}${green}ssh-ec2 -c ${reset}or ${bold}${green}ssh-ec2 --configure${reset}"
+    echo -e "\n3 - Help: ${bold}${green}ssh-ec2 -h ${reset}or ${bold}${green}ssh-ec2 -help${reset}"
     echo ""
-    exit -1
-else
-    if [ "$1" == "-h" ] || [ "S1" == "--help" ]; then
-        echo "${bold}----------${reset}"
-        printf "${bold}${green}Info${reset}\nScript needs an argument:"
-        printf "\n1 - The ec2 ${bold}${green}username${reset} for ssh connection, usually: ${yellow}ubuntu${reset} if you are using Ubuntu SO in ec2 or ${yellow}ec2-user${reset} for Elastic Beanstalk."
-        printf "\n2 - Configure: ${bold}${green}ssh-ec2 -c ${reset}or ${bold}${green}ssh-ec2 --configure${reset}"
-        printf "\n3 - Help: ${bold}${green}ssh-ec2 -h ${reset}or ${bold}${green}ssh-ec2 -help${reset}"
-        echo ""
-        echo "${bold}----------${reset}"
-        exit 0
-    elif [ "$1" == "-c" ] || [ "$1" == "--configure" ]; then
-        printf "\n########################################"
-        echo "${yellow}"
-        printf "\n             CONFIGURING                "
-        echo "${reset}"
-        printf "\n########################################"
-        echo ""
-        printf "${yellow}\n1. Where are key or pem file path located? (defaul path ~/.ssh): ${reset}"
-        read SSH_KEYS_PATH
-        if [ "$SSH_KEYS_PATH" == "" ]; then
-            SSH_KEYS_PATH="$HOME/.ssh"
-        fi
-        printf "${yellow}\n2. Write one AWS instance tag name different to 'Name' to identify your instance (Leave empty if you do not need more): ${reset}"
-        read AWS_TAG2
-        CONFIG_FILE_JSON=$(cat $CONFIG_FILE)
-        jq ".tag2 = \"$AWS_TAG2\"" <<<"$CONFIG_FILE_JSON" > $CONFIG_FILE
-        CONFIG_FILE_JSON=$(cat $CONFIG_FILE)
-        jq ".tag1 = \"$AWS_TAG1\"" <<<"$CONFIG_FILE_JSON" > $CONFIG_FILE
-        exit 0
+    echo "${bold}----------${reset}"
+    exit 0
+# Configuration menu
+elif [ "$1" == "-c" ] || [ "$1" == "--configure" ]; then
+    echo -e "\n########################################"
+    echo "${yellow}"
+    echo -e "\n             CONFIGURING                "
+    echo "${reset}"
+    echo -e "\n########################################"
+    echo ""
+    echo -e "${yellow}\n1. Where are key or pem file path located? (defaul path ~/.ssh): ${reset}"
+    read SSH_KEYS_PATH
+    if [ "$SSH_KEYS_PATH" == "" ]; then
+        SSH_KEYS_PATH="$HOME/.ssh"
     fi
+    echo -e "${yellow}\n2. Write one AWS instance tag name different to 'Name' to identify your instance (Leave empty if you do not need more): ${reset}"
+    read AWS_TAG2
+    CONFIG_FILE_JSON=$(cat $CONFIG_FILE)
+    jq ".tag2 = \"$AWS_TAG2\"" <<<"$CONFIG_FILE_JSON" > $CONFIG_FILE
+    CONFIG_FILE_JSON=$(cat $CONFIG_FILE)
+    jq ".tag1 = \"$AWS_TAG1\"" <<<"$CONFIG_FILE_JSON" > $CONFIG_FILE
+    exit 0
+fi
+
+# Check if config file is writable
+if [ ! -w "$CONFIG_FILE" ]; then
+    echo "${red}ERROR: configuration file located in $HOME/.ssh-ec2.config is not writable.${reset}"
+    exit -1
 fi
 
 echo ""
+
 
 # Getting last configuration
 AWS_TAG1=$(cat $CONFIG_FILE | jq .tag1 | sed 's/"//g')
 AWS_TAG2=$(cat $CONFIG_FILE | jq .tag2 | sed 's/"//g')
 if [ "$AWS_TAG1" == "" ]; then
-    echo "${red}ERROR${reset}: First configure your perfil"
+    echo "${red}ERROR${reset}: First configure your profile"
     echo "Run ${green}ssh-ec2 -c ${reset}or ${green}ssh-ec2 --configure${reset}"
     exit -1
 fi
@@ -97,23 +111,17 @@ LAST_AWS_PROFILE=$(cat $CONFIG_FILE | jq .last_aws_profile | sed 's/"//g')
 LAST_PEM_NAME=$(cat $CONFIG_FILE | jq .last_aws_pem | sed 's/"//g')
 LAST_INSTANCE_NAME="$(cat $CONFIG_FILE| jq .last_instance_name | sed 's/"//g')"
 
-# Check if config file is writable
-if [ ! -w "$CONFIG_FILE" ]; then
-    echo "${red}ERROR: configuration file located in $HOME/.ssh-ec2.config is not writable.${reset}"
-    exit -1
-fi
 
 # Choose your AWS profile
-printf "\n#######################################"
+echo -e "\n#######################################"
 echo "${yellow}"
-printf "\n             AWS PROFILE                "
+echo -e "\n             AWS PROFILE                "
 echo "${reset}"
-printf "\n#######################################"
-printf "\n\n"
+echo -e "\n#######################################"
+echo -e "\n\n"
 grep -A 0 "\[" ~/.aws/credentials | sed 's/\[//' | sed 's/\]//'
-printf "\n${yellow}Which AWS profile ($LAST_AWS_PROFILE): ${reset}"
+echo -e "\n${yellow}Which AWS profile ($LAST_AWS_PROFILE): ${reset}"
 read AWS_PROFILE
-
 # Setting conf file
 if [ "$AWS_PROFILE" == "" ]; then
     AWS_PROFILE="$LAST_AWS_PROFILE"
@@ -122,15 +130,15 @@ else
     jq ".last_aws_profile = \"$AWS_PROFILE\"" <<<"$CONFIG_FILE_JSON" > $CONFIG_FILE
 fi
 
+
 # Getting instances tags name
 echo ""
-printf "\n#######################################"
+echo -e "\n#######################################"
 echo "${yellow}"
-printf "\n             INSTANCE NAME              "
+echo -e "\n             INSTANCE NAME              "
 echo "${reset}"
-printf "\n#######################################"
-printf "\n\n"
-
+echo -e "\n#######################################"
+echo -e "\n\n"
 if [ "$AWS_TAG2" == "" ]; then
     aws --profile $AWS_PROFILE ec2 describe-instances --query \
     "Reservations[*].Instances[*].{$AWS_TAG1: Tags[?Key=='"$AWS_TAG1"'] | \
@@ -144,10 +152,9 @@ else
     --output table | awk '/running/ { $0 = "\033[32m" $0 "\033[32m" }; /stopped/ { $0 = "\033[31m" $0 "\033[31m" }; 1'
 fi
 
-printf "\n${yellow}Which ec2 label $AWS_TAG1 ($LAST_INSTANCE_NAME): ${reset}"
+echo -e "\n${yellow}Which ec2 label $AWS_TAG1 ($LAST_INSTANCE_NAME): ${reset}"
 read INSTANCE_NAME
-
-## Setting conf file
+# Setting conf file
 if [ "$INSTANCE_NAME" == "" ]; then
     INSTANCE_NAME="$LAST_INSTANCE_NAME"
 else
@@ -163,20 +170,19 @@ INSTANCE_AWS_PEM=$(aws --profile $AWS_PROFILE ec2 describe-instances --query \
 "Reservations[*].Instances[*].KeyName" --output text --filters \
 "Name=tag-key,Values=Name" "Name=tag-value,Values=$INSTANCE_NAME")
 
-# Getting the ssh kays ready in $home/.ssh
+# Getting the ssh keys ready in $home/.ssh
 echo ""
-printf "\n#######################################"
+echo -e "\n#######################################"
 echo "${yellow}"
-printf "\n        PEM NAME in your local          "
+echo -e "\n        PEM NAME in your local          "
 echo "${reset}"
-printf "\n#######################################"
-printf "\n"
+echo -e "\n#######################################"
+echo -e "\n"
 echo "$(ls -l $SSH_KEYS_PATH | awk '{ print $9 }')"
 echo "${red}---------------------------------------${reset}"
-printf "Instance chosen: ${green}$INSTANCE_NAME${reset}, PEM recommended: ${green}${INSTANCE_AWS_PEM}.pem${reset}"
-printf "\n${yellow}Write your pem name ($LAST_PEM_NAME): ${reset}"
+echo -e "Instance chosen: ${green}$INSTANCE_NAME${reset}, PEM recommended: ${green}${INSTANCE_AWS_PEM}.pem${reset}"
+echo -e "\n${yellow}Write your pem name ($LAST_PEM_NAME): ${reset}"
 read PEM_NAME
-
 # Setting conf file
 if [ "$PEM_NAME" == "" ]; then
     PEM_NAME="$LAST_PEM_NAME"
@@ -192,7 +198,7 @@ INSTANCE_SG_ID=$(aws --profile $AWS_PROFILE ec2 describe-instances --query \
 "Reservations[*].Instances[*].SecurityGroups[*].GroupId" --output=text --filters \
 "Name=tag-key,Values=Name" "Name=tag-value,Values=$INSTANCE_NAME" "Name=instance-state-code,Values=16")
 echo "${yellow}"
-printf "\nSecurity Group id: $INSTANCE_SG_ID"
+echo -e "\nSecurity Group id: $INSTANCE_SG_ID"
 echo "${reset}"
 echo ""
 
@@ -206,20 +212,19 @@ ADDING_RULE="$?"
 
 # SSH CONNECTION
 echo ""
-printf "\n#######################################"
+echo -e "\n#######################################"
 echo "${yellow}"
-printf "\n            SSH CONNECTION              "
+echo -e "\n            SSH CONNECTION              "
 echo "${reset}"
-printf "\n#######################################"
-printf "\n\n"
-
-printf "Setting connection: \nssh -i $PEM_PATH $USERNAME@$PUBLIC_DNS\n\n"
+echo -e "\n#######################################"
+echo -e "\n\n"
+echo -e "Setting connection: \nssh -i $PEM_PATH $USERNAME@$PUBLIC_DNS\n\n"
 echo ""
 if [ "$PEM_PATH" == "" ] || [ "$USERNAME" == "" ] || [ "$PUBLIC_DNS" == "" ] ;then
     echo "${red}ERROR: some variable is empty:${reset}"
-    printf "\n- ${red}Pem path${reset}: $PEM_PATH"
-    printf "\n- ${red}Instance username${reset}: $USERNAME"
-    printf "\n- ${red}Public dns${reset}: $PUBLIC_DNS"
+    echo -e "\n- ${red}Pem path${reset}: $PEM_PATH"
+    echo -e "\n- ${red}Instance username${reset}: $USERNAME"
+    echo -e "\n- ${red}Public dns${reset}: $PUBLIC_DNS"
     echo ""
     exit -1
 fi
